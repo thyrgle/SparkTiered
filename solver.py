@@ -25,7 +25,6 @@ def initial_pos():
     return 0
 ##################
 
-# TODO: tie/draw logic
 # TODO: writing RDD's to files
 
 def next_moves(state):
@@ -60,17 +59,20 @@ def flatmap_parents(state):
     For each parent of the given, solved child state, generate an intermediate state
     for the parent with the child's game value translated to what it means for the
     parent (see child_to_parent_game_value). Also update remoteness as a tuple, where
-    the first element is set if the child is a win for the parent and the second
-    element is set if the child is a lose for the parent.
+    the first element is set if the child is a win for the parent, the second
+    element is set if the child is a loss, and the third is set if the child is
+    a tie.
     """
     generation, parents, game_val, remoteness = state[1]
     game_val_parent = child_to_parent_game_value(game_val)
     remote_tup = None
     # TODO: tie/draw logic
     if game_val_parent == DWULT["W"]:
-        remote_tup = (remoteness + 1, float("-inf"))
+        remote_tup = (remoteness + 1, float("-inf"), float("-inf"))
     elif game_val_parent == DWULT["L"]:
-        remote_tup = (float("inf"), remoteness + 1)
+        remote_tup = (float("inf"), remoteness + 1, float("-inf"))
+    elif game_val_parent == DWULT["T"]:
+        remote_tup = (float("inf"), float("-inf"), remoteness + 1)
     return [(parent, (generation - 1, [], child_to_parent_game_value(game_val), remote_tup)) \
                 for parent in parents]
 
@@ -84,7 +86,8 @@ def child_to_parent_game_value(child_game_val):
     parent_game_val = DWULT["L"]
     if child_game_val == DWULT["L"]:
         parent_game_val = DWULT["W"]
-    # TODO: tie/draw logic
+    elif child_game_val == DWULT["T"]:
+        parent_game_val = DWULT["T"]
     return parent_game_val
 
 def reduce_by_game_value(data_a, data_b):
@@ -92,19 +95,20 @@ def reduce_by_game_value(data_a, data_b):
     Used going up the tree to solve all states.
     Reduce all of a parent's child game values to solve for the parent's game
     value. Take the min of all remotenesses that are the first tuple element
-    (i.e. set by all children that are a win for a parent) and the max of
+    (i.e. set by all children that are a win for a parent), the max of
     all remotenesses that are the second tuple element (set by all children
-    that are a loss for a parent).
+    that are a loss for a parent), adn the max of all remotenesses that are the
+    third tuple element (set by all children that are a tie for a parent).
     """
     game_val_a = data_a[2]
     game_val_b = data_b[2]
     generation = data_a[0]
-    min_remote_a, max_remote_a = data_a[3]
-    min_remote_b, max_remote_b = data_b[3]
-    agg_min_remote = min_remote_a if min_remote_a < min_remote_b else min_remote_b
-    agg_max_remote = max_remote_a if max_remote_a > max_remote_b else max_remote_b
-    agg_remote = (agg_min_remote, agg_max_remote)
-    # TODO: tie/draw logic
+    remote_w_a, remote_l_a, remote_t_a = data_a[3]
+    remote_w_b, remote_l_b, remote_t_b = data_b[3]
+    agg_remote_w = remote_w_a if remote_w_a < remote_w_b else remote_w_b
+    agg_remote_l = remote_l_a if remote_l_a > remote_l_b else remote_l_b
+    agg_remote_t = remote_t_a if remote_t_a > remote_t_b else remote_t_b
+    agg_remote = (agg_remote_w, agg_remote_l, agg_remote_t)
     if game_val_a == DWULT["W"] or game_val_b == DWULT["W"]:
         # If there is at least one winning move for the parent, its game value
         # is a win
@@ -113,14 +117,19 @@ def reduce_by_game_value(data_a, data_b):
         # If all child states represent a loss for the parent, its game value
         # is a loss
         return (generation, [], DWULT["L"], agg_remote)
+    if game_val_a == DWULT["T"] or game_val_b == DWULT["T"]:
+        # If one child state is a tie for the parent and their are no winning moves,
+        # the parent is a tie
+        return (generation, [], DWULT["T"], agg_remote)
 
 def determine_remoteness(intermed_state):
     """
     Used going up the tree, after solving for game values. If a node's solved
-    game value is a win, set the remoteness to the first tuple value, the 1 +
-    the min remoteness of the children of all winning moves. Otherwise if it is
+    game value is a win, set the remoteness to the first tuple value, 1 +
+    the min remoteness of the children of all winning moves. If it is
     a loss, set remoteness to the second value, 1 + the max remoteness of the
-    children of all losing moves.
+    children of all losing moves. If it is a tie, set remoteness to the third
+    value, 1 + the max remoteness of the children of all tieing moves.
     """
     data = intermed_state[1]
     solved_game_val = data[2]
@@ -130,7 +139,8 @@ def determine_remoteness(intermed_state):
         solved_remote = remote_tup[0]
     elif solved_game_val == DWULT["L"]:
         solved_remote = remote_tup[1]
-    # TODO: tie/draw logic
+    elif solved_game_val == DWULT["T"]:
+        solved_remote = remote_tup[2]
     return (intermed_state[0], (data[0], data[1], solved_game_val, solved_remote))
 
 def merge_data(data_a, data_b):
