@@ -1,4 +1,7 @@
 from pyspark import SparkContext
+import pickle
+from solver_utils import DWULT
+from tictactoe import initial_position as initial_pos, gen_moves, do_move, primitive
 
 sc = SparkContext()
 
@@ -9,23 +12,20 @@ generation = 0             # Keep track of what generation we are on
 generations = [] # RDD's generated going down the tree.
 solved_generations = [] # RDD's generated going up the tree.
 
-DWULT = {"L": "L", "W": "W", "T": "T", "D": "D", "U": "U"}
 
 ### A simple game, for demonstration. Not actually a tiered game. ###
-def primitive(pos):
-    return DWULT["L"] if pos == 10 else DWULT["U"]
-
-def gen_moves(pos):
-    return [move for move in [1, 2] if pos + move <= 10]
-
-def do_move(pos, move):
-    return pos + move
-
-def initial_pos():
-    return 0
+# def primitive(pos):
+#     return DWULT["L"] if pos == 10 else DWULT["U"]
+#
+# def gen_moves(pos):
+#     return [move for move in [1, 2] if pos + move <= 10]
+#
+# def do_move(pos, move):
+#     return pos + move
+#
+# def initial_pos():
+#     return 0
 ##################
-
-# TODO: writing RDD's to files
 
 def next_moves(state):
     """
@@ -35,6 +35,9 @@ def next_moves(state):
     state = (pos, (generation, [parent positions], DWULT value, remoteness))
     """
     pos = state[0]
+    parent_dwult = state[1][2]
+    if parent_dwult != DWULT["U"]:
+        return []
     children = []
     for move in gen_moves(pos):
         new_pos = do_move(pos, move)
@@ -66,7 +69,6 @@ def flatmap_parents(state):
     generation, parents, game_val, remoteness = state[1]
     game_val_parent = child_to_parent_game_value(game_val)
     remote_tup = None
-    # TODO: tie/draw logic
     if game_val_parent == DWULT["W"]:
         remote_tup = (remoteness + 1, float("-inf"), float("-inf"))
     elif game_val_parent == DWULT["L"]:
@@ -163,20 +165,29 @@ next_gen = sc.parallelize([(initial_pos(), (0, [], init_val, init_remote))])
 
 ### Go down the tree, generating all (potentially unsolved) states ###
 while next_gen.count() > 0:
-    print("next_gen: ", next_gen.collect()) # for demonstration only
+    # print("next_gen: ", next_gen.collect()) # for demonstration only
     generations.append(next_gen)
     generation += 1
     next_gen = next_gen.flatMap(next_moves).reduceByKey(aggregate_parents)
 
 ### Go up the tree, solving all states ###
 intermed_RDD = None
-num_gen = len(generations)
+gen_length = len(generations)
+num_gen = gen_length
 while num_gen > 0:
     gen_RDD = generations[num_gen - 1]
     if intermed_RDD is not None:
         gen_RDD = gen_RDD.union(intermed_RDD).reduceByKey(merge_data)
-    print("solved_gen: ", gen_RDD.collect()) # for demonstration only
+    pickle.dump(gen_RDD.collect(), \
+        open("solver_tier_" + str(num_gen - 1) + ".p", "wb"));
+    print("solved gen" + str(num_gen - 1));
+    # print("solved_gen: ", gen_RDD.collect()) # for demonstration only
     solved_generations.insert(0, gen_RDD)
     intermed_RDD = gen_RDD.flatMap(flatmap_parents).reduceByKey(reduce_by_game_value) \
                             .map(determine_remoteness)
     num_gen -= 1
+
+for i in range(gen_length):
+    tier = pickle.load(open("solver_tier_" + str(i) + ".p", "rb"))
+    print("size of tier", i);
+    print(len(tier))
