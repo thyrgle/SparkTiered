@@ -187,7 +187,15 @@ while num_gen > 0:
                             .map(determine_remoteness)
     num_gen -= 1
 
+count_positions = 0
 for i in range(gen_length):
     tier = pickle.load(open("solver_tier_" + str(i) + ".p", "rb"))
+    if i == 0:
+        initial_state = tier[0]
+        game_val = initial_state[1][2]
+        remoteness = initial_state[1][3]
+        print(str(game_val) + " in " + str(remoteness))
     print("size of tier", i);
     print(len(tier))
+    count_positions += len(tier)
+print("Total number of positions: " + str(count_positions))

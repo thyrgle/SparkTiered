@@ -1,6 +1,5 @@
-import numpy as np
+# import numpy as np
 from solver_utils import DWULT
-# from solver import DWULT
 
 #state is simply a 3x3 numpy array
 #0 is empty, 1 and 2 correspond to the players
@@ -36,9 +35,9 @@ def gen_moves(state):
 #executes the move given by parameter action on the parameter state
 #returns the successor state generated
 def do_move(state, action):
-	successor = np.copy(state)
+	successor = list(map(list, state))
 	player, loc = action
-	successor[loc[0],loc[1]] = player
+	successor[loc[0]][loc[1]] = player
 	return tuple(map(tuple, successor))
 
 #returns the gamesman values of WIN, TIE, or UNDECIDED depending on the state
@@ -65,23 +64,23 @@ def primitive(state):
 
 
 #can help optimize the solver by also knowing the lastAction
-def primitiveLastAction(state, lastAction):
-	def connectionTest(x, y, player, dx, dy, numPiecesTillConnection):
-		if numPiecesTillConnection <= 0:
-			return True
-		if x not in range(3) or y not in range(3) or state[x][y] != player:
-			return
-		return connectionTest(x+dx, y+dy, player, dx, dy, numPiecesTillConnection-1)
-
-	player, loc = lastAction
-	x, y = loc
-
-	if connectionTest(x+1, y, player, 1, 0, 2) or connectionTest(x, y+1, player, 0, 1, 2) \
-	or connectionTest(x+1, y+1, player, 1, 1, 2) or connectionTest(x+1, y-1, player, 1, -1, 2) \
-	or connectionTest(x-1, y+1, player, -1, 1, 2) or connectionTest(x-1, y-1, player, -1, -1, 2) \
-	or connectionTest(x-1, y, player, -1, 0, 2) or connectionTest(x, y-1, player, 0, -1, 2):
-		return DWULT["L"]
-
-	if np.count_nonzero(state) == 0:
-		return DWULT["T"]
-	return DWULT["U"]
+# def primitiveLastAction(state, lastAction):
+# 	def connectionTest(x, y, player, dx, dy, numPiecesTillConnection):
+# 		if numPiecesTillConnection <= 0:
+# 			return True
+# 		if x not in range(3) or y not in range(3) or state[x][y] != player:
+# 			return
+# 		return connectionTest(x+dx, y+dy, player, dx, dy, numPiecesTillConnection-1)
+#
+# 	player, loc = lastAction
+# 	x, y = loc
+#
+# 	if connectionTest(x+1, y, player, 1, 0, 2) or connectionTest(x, y+1, player, 0, 1, 2) \
+# 	or connectionTest(x+1, y+1, player, 1, 1, 2) or connectionTest(x+1, y-1, player, 1, -1, 2) \
+# 	or connectionTest(x-1, y+1, player, -1, 1, 2) or connectionTest(x-1, y-1, player, -1, -1, 2) \
+# 	or connectionTest(x-1, y, player, -1, 0, 2) or connectionTest(x, y-1, player, 0, -1, 2):
+# 		return DWULT["L"]
+#
+# 	if np.count_nonzero(state) == 0:
+# 		return DWULT["T"]
+# 	return DWULT["U"]
