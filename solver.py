@@ -1,30 +1,14 @@
 from pyspark import SparkContext
 from solver_utils import DWULT
-from tictactoe import initial_position as initial_pos, gen_moves, do_move, primitive
+from tictactoe import initial_pos, gen_moves, do_move, primitive
 
 sc = SparkContext()
 
-# Otherwise we will get a TON of messages
 sc.setLogLevel("ERROR")
 
 generation = 0             # Keep track of what generation we are on
 generations = [] # RDD's generated going down the tree.
 solved_generations = [] # RDD's generated going up the tree.
-
-
-### A simple game, for demonstration. Not actually a tiered game. ###
-# def primitive(pos):
-#     return DWULT["L"] if pos == 10 else DWULT["U"]
-#
-# def gen_moves(pos):
-#     return [move for move in [1, 2] if pos + move <= 10]
-#
-# def do_move(pos, move):
-#     return pos + move
-#
-# def initial_pos():
-#     return 0
-##################
 
 def next_moves(state):
     """
