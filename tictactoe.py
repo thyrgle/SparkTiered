@@ -1,11 +1,8 @@
-# import numpy as np
 from solver_utils import DWULT
 
 #state is simply a 3x3 numpy array
 #0 is empty, 1 and 2 correspond to the players
-def initial_position():
-	# return np.zeros((3,3), dtype=np.int8)
-
+def initial_pos():
 	# Spark doesn't allow non-hashable types, like ndarrays or lists, as keys
 	return ((0, 0, 0), (0, 0, 0), (0, 0, 0))
 
